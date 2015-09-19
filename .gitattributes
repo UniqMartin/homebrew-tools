@@ -1,0 +1,3 @@
+# We'll be bold here and assume everything is text and for use on Linux/OS X,
+# thus EOL is always signified by LF. All exceptions must be stated below.
+* text eol=lf
