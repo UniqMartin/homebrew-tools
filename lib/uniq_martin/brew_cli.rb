@@ -5,7 +5,7 @@ end
 
 # Only accept invocation via `brew`.
 unless defined?(HOMEBREW_LIBRARY_PATH)
-  brew_command = File.basename($PROGRAM_NAME, ".rb").tr("-", " ")
+  brew_command = File.basename($PROGRAM_NAME, ".rb").split("-", 2).join(" ")
   abort("Error: Please run via `#{brew_command}`.")
 end
 
