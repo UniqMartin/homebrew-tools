@@ -12,7 +12,7 @@ module TimeCli
   def run!
     usage(0) if ARGV.flag?("--help")
 
-    info = Benchmark.measure { system HOMEBREW_PREFIX.join("bin/brew"), *ARGV }
+    info = Benchmark.measure { system HOMEBREW_BREW_FILE, *ARGV }
     $stderr.puts "brew #{ARGV.first}: #{format_result(info)}"
   end
 
