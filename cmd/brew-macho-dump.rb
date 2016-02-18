@@ -4,18 +4,26 @@ $LOAD_PATH.unshift(File.expand_path("../../lib", __FILE__))
 
 require "uniq_martin/brew_cli"
 
-module MachoDumpCli
+module MachoDumpCli # rubocop:disable Metrics/ModuleLength
   include UniqMartin::BrewCliExtension
   extend self
 
   def run!
     usage(0) if ARGV.flag?("--help")
 
+    @troublemakers = []
     dirs = dirs_from_argv(ARGV.named)
     dirs.each { |dir| macho_dump(dir) }
+    output_summary
   end
 
   private
+
+  def output_summary
+    return if @troublemakers.empty?
+    puts "\nFiles that caused errors (rerun with '--debug' to investigate):"
+    puts "  #{@troublemakers.join("\n  ")}"
+  end
 
   def dirs_from_argv(argv)
     raise "Expected at least one named argument." if argv.empty?
@@ -33,9 +41,15 @@ module MachoDumpCli
   def macho_dump(dir)
     dir.find do |pn|
       next if pn.symlink? || pn.directory?
-      next unless pn.mach_o_bundle? || pn.dylib? || pn.mach_o_executable?
-      dump_one_file(pn)
+      poke_one_file(pn)
     end
+  end
+
+  def poke_one_file(pn)
+    dump_one_file(pn) if pn.mach_o_bundle? || pn.dylib? || pn.mach_o_executable?
+  rescue
+    raise if ARGV.debug?
+    @troublemakers << pn
   end
 
   def dump_one_file(pn)
@@ -106,6 +120,11 @@ DESCRIPTION
   namely 32/64-bit variants of x86 (since 10.4) and PowerPC (until 10.5).
 
 OPTIONS
+  -d, --debug
+    If given, an error encountered while processing the files will interrupt the
+    run and a stack trace will be printed. Otherwise, processing will resume and
+    a summary of files that caused errors will be printed at the end.
+
   -h, --help
     Show this usage information and exit.
 

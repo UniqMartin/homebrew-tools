@@ -11,11 +11,19 @@ module MachoFindCli
   def run!
     usage(0) if ARGV.flag?("--help")
 
+    @troublemakers = []
     dirs = dirs_from_argv(ARGV.named)
     dirs.each { |dir| macho_find(dir) }
+    output_summary
   end
 
   private
+
+  def output_summary
+    return if @troublemakers.empty?
+    puts "\nFiles that caused errors (rerun with '--debug' to investigate):"
+    puts "  #{@troublemakers.join("\n  ")}"
+  end
 
   def dirs_from_argv(argv)
     raise "Expected at least one named argument." if argv.empty?
@@ -33,12 +41,18 @@ module MachoFindCli
   def macho_find(dir)
     dir.find do |pn|
       next if pn.symlink? || pn.directory?
-      next unless pn.mach_o_bundle? || pn.dylib? || pn.mach_o_executable?
-      puts pn
+      poke_one_file(pn)
     end
   end
 
-  def usage(code = nil)
+  def poke_one_file(pn)
+    puts pn if pn.mach_o_bundle? || pn.dylib? || pn.mach_o_executable?
+  rescue
+    raise if ARGV.debug?
+    @troublemakers << pn
+  end
+
+  def usage(code = nil) # rubocop:disable Metrics/MethodLength
     puts_usage <<-EOS
 NAME
   brew macho-find - Recursively list all Mach-O files in given directories.
@@ -60,6 +74,11 @@ DESCRIPTION
   namely 32/64-bit variants of x86 (since 10.4) and PowerPC (until 10.5).
 
 OPTIONS
+  -d, --debug
+    If given, an error encountered while processing the files will interrupt the
+    run and a stack trace will be printed. Otherwise, processing will resume and
+    a summary of files that caused errors will be printed at the end.
+
   -h, --help
     Show this usage information and exit.
 
